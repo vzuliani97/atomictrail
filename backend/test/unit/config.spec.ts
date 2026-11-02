@@ -11,8 +11,16 @@ describe('configuration', () => {
     expect(() => loadConfig({ ...env, JWT_SECRET: 'replace-with-output-of-openssl-rand-hex-32' })).toThrow(/JWT_SECRET/);
   });
 
-  it('refuses the published demo secrets in production without demo data', () => {
-    expect(() => loadConfig({ ...env, NODE_ENV: 'production' })).toThrow(/CASINO_PROVIDER_SECRET.*DEMO_PARTNER_SECRET/);
-    expect(loadConfig({ ...env, NODE_ENV: 'production', SEED_DEMO_DATA: 'true' }).NODE_ENV).toBe('production');
+  it('refuses the published signing secrets in production, even with demo data', () => {
+    const production = { ...env, NODE_ENV: 'production' };
+    const signing = { CASINO_PROVIDER_SECRET: 'b'.repeat(48), DEMO_PARTNER_SECRET: 'c'.repeat(48) };
+
+    expect(() => loadConfig(production)).toThrow(/CASINO_PROVIDER_SECRET.*DEMO_PARTNER_SECRET/);
+    expect(() => loadConfig({ ...production, SEED_DEMO_DATA: 'true' })).toThrow(/CASINO_PROVIDER_SECRET/);
+    expect(loadConfig({ ...production, SEED_DEMO_DATA: 'true', ...signing }).NODE_ENV).toBe('production');
+  });
+
+  it('keeps the demo defaults outside production', () => {
+    expect(loadConfig(env).CASINO_PROVIDER_SECRET).toMatch(/^demo-/);
   });
 });

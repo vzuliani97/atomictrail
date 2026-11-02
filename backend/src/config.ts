@@ -34,12 +34,13 @@ const schema = z.object({
   if (env.JWT_SECRET.startsWith('replace-with')) {
     ctx.addIssue({ code: 'custom', path: ['JWT_SECRET'], message: 'replace the .env.example placeholder: openssl rand -hex 32, or delete .env and run make .env' });
   }
-  // The demo secrets are published in this repository. Anyone could sign casino callbacks or partner
-  // requests with them, so a production deployment without demo data must set its own.
-  if (env.NODE_ENV !== 'production' || env.SEED_DEMO_DATA) return;
+  // The demo signing secrets are published in this repository. Anyone could sign casino callbacks or
+  // partner requests with them, so production mode needs real ones, even when it loads demo data
+  // (Docker Compose and OpsCircuit both do). Tests and local development keep the defaults.
+  if (env.NODE_ENV !== 'production') return;
   for (const key of ['CASINO_PROVIDER_SECRET', 'DEMO_PARTNER_SECRET'] as const) {
     if (env[key].startsWith('demo-')) {
-      ctx.addIssue({ code: 'custom', path: [key], message: 'set a real secret outside demo mode' });
+      ctx.addIssue({ code: 'custom', path: [key], message: 'set a real secret in production (make .env generates one)' });
     }
   }
 });

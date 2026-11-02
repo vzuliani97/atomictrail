@@ -36,7 +36,7 @@ Everything in this repository, end to end:
 - **Live betting:** a simulated odds feed with a single leader (`pg_try_advisory_xact_lock`) for four sports, each with its own clock and scoring model: football and ice hockey (Poisson goals, three-way result, double chance, total goals, both teams to score), basketball (quarters and overtime, a normal model of points, winner and total points) and baseball (innings and extra innings, Poisson runs, winner and total runs), Server-Sent Events to the browser, `ODDS_CHANGED` when the price moved, and settlement of every market paid exactly once.
 - **Casino:** a seamless wallet whose provider callbacks are idempotent by transaction id, with rollback tombstones; five fictitious games, three of them slot machines whose reels show the outcome the provider decided.
 - **Frontend (React):** the cashier with top-ups; the sportsbook with sports and leagues, each sport's clock and score, an event page with a live tracker drawn for each sport (pitch, court, diamond or rink) and every market, bet slip and my bets; the casino lobby with an animated slot machine; the admin screens.
-- **Delivery and quality:** Docker Compose, Prometheus metrics, multi-arch images published by CI and deployed by Argo CD in [OpsCircuit](https://github.com/vzuliani97/opscircuit), 54 automated tests, CodeQL, Gitleaks and `npm audit`.
+- **Delivery and quality:** Docker Compose, Prometheus metrics, multi-arch images published by CI and deployed by Argo CD in [OpsCircuit](https://github.com/vzuliani97/opscircuit), 60 automated tests, CodeQL, Gitleaks and `npm audit`.
 
 | Problem | How NekoBet handles it | Proof |
 |---|---|---|
@@ -115,7 +115,7 @@ The admin creates points of sale, credits their balances and watches sales acros
 | Backend | Node.js 24, NestJS 11, Zod 4, JWT, bcrypt, Helmet, HMAC-SHA256, Server-Sent Events |
 | Data | PostgreSQL 16 (plain SQL with the `pg` driver, versioned migrations, advisory locks, append-only ledger) |
 | Infrastructure and DevOps | Docker multi-stage images running as non-root, Docker Compose, multi-arch images on GHCR, deployed to Kubernetes by Argo CD in [OpsCircuit](https://github.com/vzuliani97/opscircuit) |
-| CI/CD and quality | GitHub Actions (actions pinned by SHA), Jest + Supertest: 54 tests (14 unit, 40 integration against a real PostgreSQL), Dependabot |
+| CI/CD and quality | GitHub Actions (actions pinned by SHA), Jest + Supertest: 60 tests (19 unit, 41 integration against a real PostgreSQL), Dependabot |
 | Security | CodeQL, Gitleaks, `npm audit`, Trivy image scan, OWASP ZAP baseline (DAST), SBOM and SLSA provenance, cosign keyless signing, an image-metadata check, login lockout, IP allowlist |
 | Observability | Prometheus metrics (`prom-client`), scraped by OpsCircuit |
 
@@ -136,7 +136,7 @@ flowchart LR
 ```mermaid
 sequenceDiagram
   participant C as Client
-  participant API as PayPoint API
+  participant API as NekoBet API
   participant DB as PostgreSQL
   participant P as Provider
   C->>API: POST /sales + Idempotency-Key
@@ -189,7 +189,7 @@ Highlights: 70-way concurrency on balance and idempotency, refunds exactly once,
 - bcrypt passwords. Login gives the same answer, in the same time, for an unknown email and a wrong password.
 - After 5 failed logins for one email from one address, that pair is locked for 15 minutes (`429 TOO_MANY_ATTEMPTS`), even for the right password. The counter lives in memory, so each API replica counts on its own.
 - The demo casino and partner secrets are published in this repository, so the API refuses to start with them in production unless it runs in demo mode.
-- JWT pinned to HS256; role checks on every route; the store id comes from the token, never from the request. The API refuses to start with the placeholder secrets of `.env.example`, and `make .env` generates random ones.
+- JWT pinned to HS256; role checks on every route; the store id comes from the token, never from the request. The API refuses to start with the placeholder secrets of `.env.example`, and in production mode with the published demo signing secrets, even when it loads demo data. `make .env` generates random ones.
 - Strict Zod validation (unknown fields rejected), 10 KB body limit, Helmet headers, CORS restricted.
 - nginx overwrites `X-Forwarded-For` and the API trusts exactly one proxy hop, so clients can't spoof their IP into the allowlist. nginx also fails fast (504 after 3 s) when the API is down.
 - `/metrics` is internal only, because nginx routes just `/api` and `/health`.

@@ -30,6 +30,7 @@ services:
       SEED_DEMO_DATA: "true"
       DEMO_PASSWORD: ${DEMO_PASSWORD:?Set DEMO_PASSWORD in .env}
       DEMO_PARTNER_SECRET: ${DEMO_PARTNER_SECRET:?Set DEMO_PARTNER_SECRET in .env}
+      CASINO_PROVIDER_SECRET: ${CASINO_PROVIDER_SECRET:?Set CASINO_PROVIDER_SECRET in .env}
     depends_on:
       postgres:
         condition: service_healthy

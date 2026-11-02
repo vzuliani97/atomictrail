@@ -6,7 +6,8 @@ const DEMO_POS_NAME = 'Tienda Centro';
 const DEMO_INITIAL_BALANCE = 100_000;
 
 /**
- * Inserts demo data for local runs. Safe to run on every start: existing rows are left alone.
+ * Inserts demo data for local runs. Safe to run on every start: existing rows are left alone, except the
+ * demo partner's secret, which follows the configuration.
  */
 export async function seedDemoData(pool: Pool, config: AppConfig): Promise<void> {
   const client = await pool.connect();
@@ -55,10 +56,11 @@ export async function seedDemoData(pool: Pool, config: AppConfig): Promise<void>
 
     const allowedIps = config.DEMO_PARTNER_ALLOWED_IPS.split(',').map((ip) => ip.trim()).filter(Boolean);
 
+    // The demo partner follows DEMO_PARTNER_SECRET, so rotating it in .env takes effect on restart.
     await client.query(
       `INSERT INTO partners (name, api_key_id, hmac_secret, pos_id, allowed_ips)
        VALUES ('Integrador Demo', 'pk_demo_tienda_centro', $1, $2, $3)
-       ON CONFLICT (api_key_id) DO NOTHING`,
+       ON CONFLICT (api_key_id) DO UPDATE SET hmac_secret = EXCLUDED.hmac_secret`,
       [config.DEMO_PARTNER_SECRET, posId, allowedIps],
     );
 
