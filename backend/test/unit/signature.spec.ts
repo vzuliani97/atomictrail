@@ -9,12 +9,13 @@ import {
 describe('partner request signature', () => {
   const secret = 'unit-test-secret-value';
 
-  it('builds the canonical string from timestamp, method, path and body hash', () => {
+  it('builds the canonical string from timestamp, method, path, body hash and idempotency key', () => {
     const body = '{"amount":5000}';
 
-    expect(buildStringToSign('1761600000', 'post', '/api/partner/v1/sales', body)).toBe(
-      ['1761600000', 'POST', '/api/partner/v1/sales', sha256Hex(body)].join('\n'),
+    expect(buildStringToSign('1761600000', 'post', '/api/partner/v1/sales', body, 'key-0001')).toBe(
+      ['1761600000', 'POST', '/api/partner/v1/sales', sha256Hex(body), 'key-0001'].join('\n'),
     );
+    expect(buildStringToSign('1761600000', 'GET', '/x', '').endsWith('\n')).toBe(true);
   });
 
   it('uses the hash of an empty body for requests without payload', () => {
@@ -36,6 +37,13 @@ describe('partner request signature', () => {
     const tampered = signRequest(secret, buildStringToSign('1761600000', 'POST', '/s', '{"amount":50000}'));
 
     expect(signaturesMatch(original, tampered)).toBe(false);
+  });
+
+  it('changes when the idempotency key changes, so a replay cannot pick a new one', () => {
+    const original = signRequest(secret, buildStringToSign('1761600000', 'POST', '/s', '{}', 'key-0001'));
+    const replay = signRequest(secret, buildStringToSign('1761600000', 'POST', '/s', '{}', 'key-0002'));
+
+    expect(signaturesMatch(original, replay)).toBe(false);
   });
 
   it('rejects malformed signatures without throwing', () => {

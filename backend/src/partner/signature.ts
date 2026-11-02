@@ -6,11 +6,19 @@ export function sha256Hex(data: Buffer | string): string {
 
 /**
  * The exact text both sides sign:
- *   <unix seconds>\n<METHOD>\n<path with query>\n<sha256 hex of the raw body>
- * Signing the body hash means any change to the payload breaks the signature.
+ *   <unix seconds>\n<METHOD>\n<path with query>\n<sha256 hex of the raw body>\n<Idempotency-Key, or empty>
+ * Signing the body hash means any change to the payload breaks the signature. Signing the
+ * Idempotency-Key means a captured request replayed with a new key is rejected instead of
+ * creating a second sale; replayed with its own key, it gets the original result back.
  */
-export function buildStringToSign(timestamp: string, method: string, path: string, rawBody: Buffer | string): string {
-  return [timestamp, method.toUpperCase(), path, sha256Hex(rawBody)].join('\n');
+export function buildStringToSign(
+  timestamp: string,
+  method: string,
+  path: string,
+  rawBody: Buffer | string,
+  idempotencyKey = '',
+): string {
+  return [timestamp, method.toUpperCase(), path, sha256Hex(rawBody), idempotencyKey].join('\n');
 }
 
 export function signRequest(secret: string, stringToSign: string): string {

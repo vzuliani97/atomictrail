@@ -10,6 +10,8 @@ interface SignOptions {
   timestamp?: number;
   sendBody?: string;
   idempotencyKey?: string;
+  /** Header value actually sent, when it differs from the signed one. */
+  sendIdempotencyKey?: string;
 }
 
 describe('Partner B2B API', () => {
@@ -21,15 +23,19 @@ describe('Partner B2B API', () => {
   const signed = (method: 'GET' | 'POST', path: string, body?: object, options: SignOptions = {}) => {
     const raw = body ? JSON.stringify(body) : '';
     const timestamp = String(options.timestamp ?? Math.floor(Date.now() / 1000));
-    const signature = signRequest(options.secret ?? SECRET, buildStringToSign(timestamp, method, path, raw));
+    const signature = signRequest(
+      options.secret ?? SECRET,
+      buildStringToSign(timestamp, method, path, raw, options.idempotencyKey),
+    );
 
     const req = (method === 'GET' ? ctx.http().get(path) : ctx.http().post(path))
       .set('X-Api-Key', options.keyId ?? 'pk_test')
       .set('X-Timestamp', timestamp)
       .set('X-Signature', signature);
 
-    if (options.idempotencyKey) {
-      req.set('Idempotency-Key', options.idempotencyKey);
+    const sentKey = options.sendIdempotencyKey ?? options.idempotencyKey;
+    if (sentKey) {
+      req.set('Idempotency-Key', sentKey);
     }
 
     return body ? req.set('Content-Type', 'application/json').send(options.sendBody ?? raw) : req;
@@ -98,6 +104,19 @@ describe('Partner B2B API', () => {
     expect(response.status).toBe(401);
     expect(response.body.error.code).toBe('INVALID_SIGNATURE');
     expect(await balanceOf(ctx.pool, posId)).toBe(30_000);
+  });
+
+  it('rejects a captured sale replayed with a new idempotency key, so it cannot be charged twice', async () => {
+    const body = { productId: topup, amount: 10_000, destination: '3157654321' };
+    const idempotencyKey = randomUUID();
+
+    const original = await signed('POST', '/api/partner/v1/sales', body, { idempotencyKey });
+    const replay = await signed('POST', '/api/partner/v1/sales', body, { idempotencyKey, sendIdempotencyKey: randomUUID() });
+
+    expect(original.status).toBe(201);
+    expect(replay.status).toBe(401);
+    expect(replay.body.error.code).toBe('INVALID_SIGNATURE');
+    expect(await balanceOf(ctx.pool, posId)).toBe(20_000);
   });
 
   it('rejects stale timestamps, which blocks replaying old captured requests', async () => {

@@ -18,7 +18,8 @@ type PartnerRequest = Request & { rawBody?: Buffer; partner?: PartnerPrincipal }
  * Authenticates B2B calls with three headers:
  *   X-Api-Key    public key id
  *   X-Timestamp  unix seconds, must be within the tolerance window
- *   X-Signature  hex HMAC-SHA256 of the string built by buildStringToSign
+ *   X-Signature  hex HMAC-SHA256 of the string built by buildStringToSign, which covers the
+ *                body and the Idempotency-Key header
  * and then checks the caller IP against the partner's allowlist.
  */
 @Injectable()
@@ -51,7 +52,13 @@ export class PartnerAuthGuard implements CanActivate {
 
     const expected = signRequest(
       partner.hmacSecret,
-      buildStringToSign(timestamp, request.method, request.originalUrl, request.rawBody ?? Buffer.alloc(0)),
+      buildStringToSign(
+        timestamp,
+        request.method,
+        request.originalUrl,
+        request.rawBody ?? Buffer.alloc(0),
+        request.header('idempotency-key') ?? '',
+      ),
     );
 
     if (!signaturesMatch(signature, expected)) {

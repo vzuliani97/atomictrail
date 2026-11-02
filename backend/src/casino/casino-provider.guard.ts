@@ -21,7 +21,13 @@ export class CasinoProviderGuard implements CanActivate {
     }
     const expected = signRequest(
       this.config.CASINO_PROVIDER_SECRET,
-      buildStringToSign(timestamp, request.method, request.originalUrl, request.rawBody ?? Buffer.alloc(0)),
+      buildStringToSign(
+        timestamp,
+        request.method,
+        request.originalUrl,
+        request.rawBody ?? Buffer.alloc(0),
+        request.header('idempotency-key') ?? '',
+      ),
     );
     if (!signaturesMatch(signature, expected)) {
       throw new AppError(401, 'INVALID_SIGNATURE', 'Signature verification failed');

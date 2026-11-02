@@ -28,7 +28,7 @@ So the balance row lock isn't held during network I/O. Inside a transaction, a s
 `UPDATE sales SET status='FAILED' WHERE id=$1 AND status='PENDING'` is a one-time transition, and `CREATE UNIQUE INDEX … ON balance_movements (sale_id) WHERE type='REFUND'` makes a second refund impossible even with a code bug.
 
 **7. Walk me through the HMAC check. What does it not protect against?**
-The client signs `timestamp \n METHOD \n path \n sha256(body)`, and we recompute it and compare with `timingSafeEqual`. It protects integrity, authenticity and replays older than 5 minutes; a replay inside the window is absorbed by idempotency. It does not protect a stolen secret, which is why the IP allowlist exists and why production secrets belong in KMS.
+The client signs `timestamp \n METHOD \n path \n sha256(body) \n Idempotency-Key`, and we recompute it and compare with `timingSafeEqual`. It protects integrity, authenticity and replays older than 5 minutes. Inside the window a replay must keep its signed idempotency key, so it gets the original sale back instead of creating another (a security assessment found the key unsigned at first, which allowed exactly that). It does not protect a stolen secret, which is why the IP allowlist exists and why production secrets belong in KMS.
 
 **8. How would this scale to 10 API instances?**
 Unchanged. All locks and invariants live in PostgreSQL and the API is stateless. Migrations already take an advisory lock so replicas don't race. The next bottleneck would be hot rows (one very busy store), which could be handled with sharded sub-balances.

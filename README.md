@@ -48,7 +48,7 @@ Everything in this repository, end to end:
 | Live odds move while the cashier decides | The bet carries the odds the cashier saw; if the price moved, the bet is refused with `ODDS_CHANGED` and no money moves | Odds-changed test |
 | A match ends and winners must be paid | Settlement updates only `OPEN` bets and a unique index allows one payout per bet | Settling twice pays once |
 | A casino provider retries or reverses a wallet call | Seamless wallet keyed by the provider's transaction id; a rollback that arrives before its debit leaves a tombstone | Retried debit applied once; late debit refused |
-| Only authorized partners may sell | HMAC-SHA256 signature over timestamp, method, path and body hash; 5-minute window; IP allowlist with CIDR | Tampered body, stale timestamp, unknown key and wrong IP are all rejected |
+| Only authorized partners may sell | HMAC-SHA256 signature over timestamp, method, path, body hash and idempotency key; 5-minute window; IP allowlist with CIDR | Tampered body, stale timestamp, unknown key, wrong IP and a captured sale replayed under a new key are all rejected |
 
 ![Cashier view: prepaid balance, product picker with quick amounts, and sales with a rejected top-up refunded automatically](docs/screenshots/02-cashier-sale.png)
 
@@ -99,7 +99,7 @@ sequenceDiagram
 
 ### 4. Partner API (B2B)
 
-Partners sign timestamp, method, path and body hash with HMAC-SHA256; the server checks it in constant time within a 5-minute window and against an IP allowlist, then runs the same idempotent sale.
+Partners sign timestamp, method, path, body hash and idempotency key with HMAC-SHA256; the server checks it in constant time within a 5-minute window and against an IP allowlist, then runs the same idempotent sale.
 
 ### 5. Administer the network
 
@@ -158,7 +158,7 @@ The provider is called **outside** the transaction. Holding the balance row lock
 ## Run it
 
 ```bash
-cp .env.example .env     # then change the values
+make .env                # .env.example with random secrets
 make up                  # or: docker compose up --build
 ```
 
@@ -189,7 +189,7 @@ Highlights: 70-way concurrency on balance and idempotency, refunds exactly once,
 - bcrypt passwords. Login gives the same answer, in the same time, for an unknown email and a wrong password.
 - After 5 failed logins for one email from one address, that pair is locked for 15 minutes (`429 TOO_MANY_ATTEMPTS`), even for the right password. The counter lives in memory, so each API replica counts on its own.
 - The demo casino and partner secrets are published in this repository, so the API refuses to start with them in production unless it runs in demo mode.
-- JWT pinned to HS256; role checks on every route; the store id comes from the token, never from the request.
+- JWT pinned to HS256; role checks on every route; the store id comes from the token, never from the request. The API refuses to start with the placeholder secrets of `.env.example`, and `make .env` generates random ones.
 - Strict Zod validation (unknown fields rejected), 10 KB body limit, Helmet headers, CORS restricted.
 - nginx overwrites `X-Forwarded-For` and the API trusts exactly one proxy hop, so clients can't spoof their IP into the allowlist. nginx also fails fast (504 after 3 s) when the API is down.
 - `/metrics` is internal only, because nginx routes just `/api` and `/health`.

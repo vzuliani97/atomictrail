@@ -8,15 +8,17 @@ const SECRET = process.env.PARTNER_SECRET ?? 'demo-partner-secret-change-me';
 
 async function call(method, path, body) {
   const raw = body ? JSON.stringify(body) : '';
+  const idempotencyKey = body ? randomUUID() : '';
   const timestamp = String(Math.floor(Date.now() / 1000));
   const bodyHash = createHash('sha256').update(raw).digest('hex');
-  const stringToSign = [timestamp, method, path, bodyHash].join('\n');
+  // The idempotency key is signed too, so a captured sale cannot be replayed under a new key.
+  const stringToSign = [timestamp, method, path, bodyHash, idempotencyKey].join('\n');
   const signature = createHmac('sha256', SECRET).update(stringToSign).digest('hex');
 
   const headers = { 'X-Api-Key': KEY_ID, 'X-Timestamp': timestamp, 'X-Signature': signature };
   if (body) {
     headers['Content-Type'] = 'application/json';
-    headers['Idempotency-Key'] = randomUUID();
+    headers['Idempotency-Key'] = idempotencyKey;
   }
 
   const response = await fetch(BASE_URL + path, { method, headers, body: body ? raw : undefined });

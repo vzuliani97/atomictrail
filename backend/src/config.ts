@@ -30,6 +30,10 @@ const schema = z.object({
   DEMO_PARTNER_SECRET: z.string().min(16).default('demo-partner-secret-change-me'),
   DEMO_PARTNER_ALLOWED_IPS: z.string().default('127.0.0.1,::1,172.16.0.0/12,192.168.0.0/16'),
 }).superRefine((env, ctx) => {
+  // .env.example publishes a placeholder JWT secret. Anyone who knows it can sign an admin token.
+  if (env.JWT_SECRET.startsWith('replace-with')) {
+    ctx.addIssue({ code: 'custom', path: ['JWT_SECRET'], message: 'replace the .env.example placeholder (make .env does it)' });
+  }
   // The demo secrets are published in this repository. Anyone could sign casino callbacks or partner
   // requests with them, so a production deployment without demo data must set its own.
   if (env.NODE_ENV !== 'production' || env.SEED_DEMO_DATA) return;
