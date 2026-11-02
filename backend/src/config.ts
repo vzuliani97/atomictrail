@@ -32,7 +32,7 @@ const schema = z.object({
 }).superRefine((env, ctx) => {
   // .env.example publishes a placeholder JWT secret. Anyone who knows it can sign an admin token.
   if (env.JWT_SECRET.startsWith('replace-with')) {
-    ctx.addIssue({ code: 'custom', path: ['JWT_SECRET'], message: 'replace the .env.example placeholder (make .env does it)' });
+    ctx.addIssue({ code: 'custom', path: ['JWT_SECRET'], message: 'replace the .env.example placeholder: openssl rand -hex 32, or delete .env and run make .env' });
   }
   // The demo secrets are published in this repository. Anyone could sign casino callbacks or partner
   // requests with them, so a production deployment without demo data must set its own.
