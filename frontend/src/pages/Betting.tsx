@@ -1,5 +1,6 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, ApiError, Bet, BoardEvent, errorMessage, Market, PickCode, Sport } from '../api';
+import { API_BASE } from '../demo';
 import { BET_STATUS_LABELS, formatCop, formatOdds } from '../format';
 
 interface Props {
@@ -110,11 +111,45 @@ export function LiveBetting({ token, onCompleted, onUnauthorized }: Props) {
       odds: selection.odds,
     });
 
+  // One stream at a time. On an error (a restart, a dropped proxy connection, a 429) the browser may stop
+  // retrying, so the stream is closed and reopened with bounded backoff. A hidden tab closes it, so a forgotten
+  // tab does not keep the free API awake.
   useEffect(() => {
-    const source = new EventSource('/api/betting/stream');
-    source.onopen = () => setConnected(true);
-    source.onerror = () => setConnected(false);
-    source.onmessage = (message) => {
+    let source: EventSource | null = null;
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    let attempt = 0;
+
+    const close = () => {
+      clearTimeout(retry);
+      source?.close();
+      source = null;
+    };
+    const connect = () => {
+      close();
+      source = new EventSource(`${API_BASE}/api/betting/stream`);
+      source.onopen = () => {
+        attempt = 0;
+        setConnected(true);
+      };
+      source.onerror = () => {
+        setConnected(false);
+        close();
+        attempt += 1;
+        retry = setTimeout(connect, Math.min(1000 * 2 ** (attempt - 1), 30_000));
+      };
+      source.onmessage = onMessage;
+    };
+    const onVisibility = () => {
+      if (document.hidden) {
+        close();
+        setConnected(false);
+      } else if (!source) {
+        attempt = 0;
+        connect();
+      }
+    };
+
+    function onMessage(message: MessageEvent) {
       const next = JSON.parse(message.data as string) as BoardEvent[];
       const changed: Record<number, 'up' | 'down'> = {};
       const scored: Record<number, boolean> = {};
@@ -131,8 +166,14 @@ export function LiveBetting({ token, onCompleted, onUnauthorized }: Props) {
       setMoves(changed);
       setGoals(scored);
       setBoard(next);
+    }
+
+    if (!document.hidden) connect();
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      close();
     };
-    return () => source.close();
   }, []);
 
   const loadBets = useCallback(async () => {

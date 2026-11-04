@@ -1,6 +1,8 @@
 import { FormEvent, useState } from 'react';
 import { api, errorMessage, User } from '../api';
 import type { Session } from '../App';
+import { DEMO_PASSWORD, IS_PUBLIC_DEMO } from '../demo';
+import { DemoNotice } from '../WakeGate';
 
 export function LoginPage({ onSignIn }: { onSignIn: (session: Session) => void }) {
   const [email, setEmail] = useState('');
@@ -49,7 +51,15 @@ export function LoginPage({ onSignIn }: { onSignIn: (session: Session) => void }
         <button type="submit" disabled={busy}>
           {busy ? 'Ingresando…' : 'Ingresar'}
         </button>
-        <p className="hint">Demo: cajero@paypoint.local o admin@paypoint.local</p>
+        {IS_PUBLIC_DEMO && DEMO_PASSWORD ? (
+          <p className="hint">
+            Usuarios de demostración: <code>cajero@paypoint.local</code> o <code>admin@paypoint.local</code>, contraseña{' '}
+            <code>{DEMO_PASSWORD}</code>. Los datos son sintéticos y se reinician cuando el servicio se reactiva.
+          </p>
+        ) : (
+          <p className="hint">Demo: cajero@paypoint.local o admin@paypoint.local</p>
+        )}
+        <DemoNotice />
       </form>
     </div>
   );

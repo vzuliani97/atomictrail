@@ -1,3 +1,4 @@
+import { API_BASE } from './demo';
 export type Role = 'ADMIN' | 'CASHIER';
 
 export interface User {
@@ -126,11 +127,18 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
     headers.Authorization = `Bearer ${options.token}`;
   }
 
-  const response = await fetch(`/api${path}`, {
-    method: options.method ?? 'GET',
-    headers,
-    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}/api${path}`, {
+      method: options.method ?? 'GET',
+      headers,
+      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+      signal: AbortSignal.timeout(30_000),
+    });
+  } catch (error) {
+    const timedOut = error instanceof DOMException && error.name === 'TimeoutError';
+    throw new ApiError(0, timedOut ? 'TIMEOUT' : 'NETWORK', timedOut ? 'Request timed out' : 'Network error');
+  }
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
@@ -155,6 +163,10 @@ const MESSAGES: Record<string, string> = {
   EVENT_CLOSED: 'El partido ya terminó.',
   MARKET_SUSPENDED: 'El mercado está suspendido en este momento.',
   STAKE_OUT_OF_RANGE: 'El valor apostado está fuera de los límites.',
+  RATE_LIMITED: 'Demasiadas solicitudes seguidas. Espera un momento e inténtalo de nuevo.',
+  TOO_MANY_ATTEMPTS: 'Demasiados intentos fallidos. Espera 15 minutos.',
+  TIMEOUT: 'El servidor tardó demasiado en responder. Inténtalo de nuevo.',
+  NETWORK: 'No hay conexión con el servidor. Si la demo estuvo inactiva, puede estar iniciándose: recarga la página.',
 };
 
 export function errorMessage(error: unknown): string {

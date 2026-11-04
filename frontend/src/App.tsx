@@ -3,6 +3,7 @@ import { User } from './api';
 import { AdminPage } from './pages/Admin';
 import { CashierPage } from './pages/Cashier';
 import { LoginPage } from './pages/Login';
+import { DemoNotice } from './WakeGate';
 
 export interface Session {
   token: string;
@@ -65,6 +66,7 @@ export function App() {
         ) : (
           <CashierPage token={session.token} onUnauthorized={signOut} />
         )}
+        <DemoNotice />
       </main>
     </div>
   );
