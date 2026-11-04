@@ -5,6 +5,8 @@
 [![CI](https://github.com/vzuliani97/nekobet/actions/workflows/ci.yml/badge.svg)](https://github.com/vzuliani97/nekobet/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/vzuliani97/nekobet/actions/workflows/codeql.yml/badge.svg)](https://github.com/vzuliani97/nekobet/actions/workflows/codeql.yml)
 
+**Try it online: https://nekobet.netlify.app** · The live board is open without an account. To bet, sell top-ups or play the casino, sign in as cashier `cajero@paypoint.local`; the administrator is `admin@paypoint.local`. Both use the password `NekoBet-2026`, shown on the page. Simulation only: no real money and no data from any provider. The data resets each time the server starts. The server runs on a free plan and sleeps when idle, so the first visit can take about a minute. It is hosted on the free plans of Netlify, Render and Neon, deployed from `main` ([how](docs/PUBLIC_DEMO_DEPLOYMENT.md)); the AWS design in OpsCircuit was never applied.
+
 A point-of-sale platform where every store sells live sports bets, casino games and prepaid top-ups from one balance: a real-time sportsbook for football, basketball, baseball and ice hockey with several markets per event, a casino lobby with slot machines and table games, and a cashier for top-ups. Built in TypeScript and PostgreSQL as a transaction reliability lab: the balance stays correct under concurrent requests, retries, provider timeouts and reversals, with idempotency, an append-only ledger, HMAC-signed integrations and real-time events.
 
 Everything runs in real time. The production betting platforms I worked on, their providers and their data are confidential, so this public version runs on a simulated feed of fictitious events, odds and games. NekoBet is a demonstration, not a licensed betting service. The service's code, images and metrics keep the `paypoint` name.
@@ -115,7 +117,7 @@ The admin creates points of sale, credits their balances and watches sales acros
 | Backend | Node.js 24, NestJS 11, Zod 4, JWT, bcrypt, Helmet, HMAC-SHA256, Server-Sent Events |
 | Data | PostgreSQL 16 (plain SQL with the `pg` driver, versioned migrations, advisory locks, append-only ledger) |
 | Infrastructure and DevOps | Docker multi-stage images running as non-root, Docker Compose, multi-arch images on GHCR, deployed to Kubernetes by Argo CD in [OpsCircuit](https://github.com/vzuliani97/opscircuit) |
-| CI/CD and quality | GitHub Actions (actions pinned by SHA), Jest + Supertest: 60 tests (19 unit, 41 integration against a real PostgreSQL), Dependabot |
+| CI/CD and quality | GitHub Actions (actions pinned by SHA), Jest + Supertest: 69 tests (24 unit, 45 integration against a real PostgreSQL), Dependabot |
 | Security | CodeQL, Gitleaks, `npm audit`, Trivy image scan, OWASP ZAP baseline (DAST), SBOM and SLSA provenance, cosign keyless signing, an image-metadata check, login lockout, IP allowlist |
 | Observability | Prometheus metrics (`prom-client`), scraped by OpsCircuit |
 
