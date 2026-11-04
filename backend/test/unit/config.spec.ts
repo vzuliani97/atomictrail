@@ -24,3 +24,28 @@ describe('configuration', () => {
     expect(loadConfig(env).CASINO_PROVIDER_SECRET).toMatch(/^demo-/);
   });
 });
+
+describe('public demo configuration', () => {
+  const env = {
+    DATABASE_URL: 'postgres://localhost/test',
+    JWT_SECRET: 'a'.repeat(64),
+    PUBLIC_DEMO: 'true',
+    DEMO_DATABASE_CONFIRMATION: 'nekobet_demo',
+    CORS_ORIGIN: 'https://nekobet.netlify.app',
+  };
+
+  it('accepts an exact https origin and a named demo database', () => {
+    expect(loadConfig(env).PUBLIC_DEMO).toBe(true);
+  });
+
+  it('requires the demo database name and one exact https origin', () => {
+    expect(() => loadConfig({ ...env, DEMO_DATABASE_CONFIRMATION: undefined })).toThrow(/DEMO_DATABASE_CONFIRMATION/);
+    expect(() => loadConfig({ ...env, CORS_ORIGIN: 'http://localhost:8081' })).toThrow(/CORS_ORIGIN/);
+    expect(() => loadConfig({ ...env, CORS_ORIGIN: 'https://*.netlify.app' })).toThrow(/CORS_ORIGIN/);
+  });
+
+  it('allows the boot reset only in demo mode', () => {
+    expect(() => loadConfig({ DATABASE_URL: env.DATABASE_URL, JWT_SECRET: env.JWT_SECRET, DEMO_RESET_ON_BOOT: 'true' })).toThrow(/DEMO_RESET_ON_BOOT/);
+    expect(loadConfig({ ...env, DEMO_RESET_ON_BOOT: 'true' }).DEMO_RESET_ON_BOOT).toBe(true);
+  });
+});

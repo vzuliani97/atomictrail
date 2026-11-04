@@ -29,10 +29,27 @@ const schema = z.object({
   CASINO_PROVIDER_SECRET: z.string().min(16).default('demo-casino-provider-secret-change-me'),
   DEMO_PARTNER_SECRET: z.string().min(16).default('demo-partner-secret-change-me'),
   DEMO_PARTNER_ALLOWED_IPS: z.string().default('127.0.0.1,::1,172.16.0.0/12,192.168.0.0/16'),
+  // Public demo on free hosting: requests are rate limited, /metrics is closed, and the synthetic data is reset
+  // on every boot. The reset runs only when the connected database's name equals DEMO_DATABASE_CONFIRMATION.
+  PUBLIC_DEMO: booleanFlag,
+  DEMO_RESET_ON_BOOT: booleanFlag,
+  DEMO_DATABASE_CONFIRMATION: z.string().regex(/^[a-z0-9_]{3,63}$/).optional(),
+  RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(240),
 }).superRefine((env, ctx) => {
   // .env.example publishes a placeholder JWT secret. Anyone who knows it can sign an admin token.
   if (env.JWT_SECRET.startsWith('replace-with')) {
     ctx.addIssue({ code: 'custom', path: ['JWT_SECRET'], message: 'replace the .env.example placeholder: openssl rand -hex 32, or delete .env and run make .env' });
+  }
+  if (env.DEMO_RESET_ON_BOOT && !env.PUBLIC_DEMO) {
+    ctx.addIssue({ code: 'custom', path: ['DEMO_RESET_ON_BOOT'], message: 'only allowed with PUBLIC_DEMO=true' });
+  }
+  if (env.PUBLIC_DEMO) {
+    if (!env.DEMO_DATABASE_CONFIRMATION) {
+      ctx.addIssue({ code: 'custom', path: ['DEMO_DATABASE_CONFIRMATION'], message: 'required with PUBLIC_DEMO=true' });
+    }
+    if (!/^https:\/\/[a-z0-9.-]+$/.test(env.CORS_ORIGIN)) {
+      ctx.addIssue({ code: 'custom', path: ['CORS_ORIGIN'], message: 'must be one exact https origin with PUBLIC_DEMO=true' });
+    }
   }
   // The demo signing secrets are published in this repository. Anyone could sign casino callbacks or
   // partner requests with them, so production mode needs real ones, even when it loads demo data
