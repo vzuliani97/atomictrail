@@ -19,7 +19,7 @@ Browser ──HTTPS──> Netlify (frontend/, static build, CDN, security heade
 | Part | Where | Notes |
 |---|---|---|
 | Frontend | Netlify, site `nekobet` | Built from `frontend/` by `netlify.toml`; calls the API and opens the live stream at `VITE_API_BASE_URL` |
-| API | Render, web service `nekobet-api-demo` | The existing production image; listens on Render's `PORT`; health check `/health`; runs the simulated odds feed while it is awake |
+| API | Render, web service `nekobet-api` | The existing production image; listens on Render's `PORT`; health check `/health`; runs the simulated odds feed while it is awake |
 | Database | Neon, its own project and a database named for the demo | Direct (non-pooled) connection string: migrations and the feed's leader election take advisory locks |
 
 Not deployed: nginx (Netlify serves the static files), Prometheus and Grafana (OpsCircuit), and the AWS Terraform.
@@ -64,7 +64,7 @@ internet.
 
 ## Provider settings (names only; values live in each dashboard)
 
-**Render (`nekobet-api-demo`):**
+**Render (`nekobet-api`):**
 
 | Variable | Value |
 |---|---|
