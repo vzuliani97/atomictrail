@@ -4,7 +4,7 @@ import type { Session } from '../App';
 import { DEMO_PASSWORD, IS_PUBLIC_DEMO } from '../demo';
 import { DemoNotice } from '../WakeGate';
 
-export function LoginPage({ onSignIn }: { onSignIn: (session: Session) => void }) {
+export function LoginPage({ onSignIn, onBack }: { onSignIn: (session: Session) => void; onBack?: () => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -58,6 +58,11 @@ export function LoginPage({ onSignIn }: { onSignIn: (session: Session) => void }
           </p>
         ) : (
           <p className="hint">Demo: cajero@paypoint.local o admin@paypoint.local</p>
+        )}
+        {onBack && (
+          <button type="button" className="link" onClick={onBack}>
+            ← Ver el tablero en vivo sin cuenta
+          </button>
         )}
         <DemoNotice />
       </form>

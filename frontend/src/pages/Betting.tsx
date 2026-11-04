@@ -4,9 +4,11 @@ import { API_BASE } from '../demo';
 import { BET_STATUS_LABELS, formatCop, formatOdds } from '../format';
 
 interface Props {
-  token: string;
+  /** Without a token the board is read-only: anyone can watch, and picking odds asks to sign in. */
+  token?: string;
   onCompleted: () => void;
   onUnauthorized: () => void;
+  onSignIn?: () => void;
 }
 
 type Pick = { eventId: number; selectionId: number; market: Market; code: PickCode; label: string; marketLabel: string; match: string; odds: number };
@@ -84,7 +86,7 @@ const FILTERS: Array<[Filter, string]> = [
 ];
 const kickoff = new Intl.DateTimeFormat('es-CO', { hour: '2-digit', minute: '2-digit' });
 
-export function LiveBetting({ token, onCompleted, onUnauthorized }: Props) {
+export function LiveBetting({ token, onCompleted, onUnauthorized, onSignIn }: Props) {
   const [board, setBoard] = useState<BoardEvent[]>([]);
   const [connected, setConnected] = useState(false);
   // Last price and score seen, to show what moved since the previous update.
@@ -177,6 +179,7 @@ export function LiveBetting({ token, onCompleted, onUnauthorized }: Props) {
   }, []);
 
   const loadBets = useCallback(async () => {
+    if (!token) return;
     try {
       setBets(await api<Bet[]>('/betting/bets', { token }));
     } catch (err) {
@@ -186,13 +189,14 @@ export function LiveBetting({ token, onCompleted, onUnauthorized }: Props) {
 
   // Settlement happens on the server when a match ends; refresh the bets and the balance regularly.
   useEffect(() => {
+    if (!token) return;
     void loadBets();
     const timer = setInterval(() => {
       void loadBets();
       onCompleted();
     }, 6000);
     return () => clearInterval(timer);
-  }, [loadBets, onCompleted]);
+  }, [token, loadBets, onCompleted]);
 
   const counts = useMemo(
     () => Object.fromEntries(FILTERS.map(([status]) => [status, board.filter((event) => event.status === status).length])) as Record<Filter, number>,
@@ -362,10 +366,12 @@ export function LiveBetting({ token, onCompleted, onUnauthorized }: Props) {
           onClear={() => setPick(null)}
           onAcceptOdds={(odds) => pick && setPick({ ...pick, odds })}
           onUnauthorized={onUnauthorized}
+          onSignIn={onSignIn}
         />
         <section className="sb-card">
           <h3>Mis apuestas</h3>
-          {bets.length === 0 && <p className="sb-muted">Aún no hay apuestas.</p>}
+          {!token && <p className="sb-muted">Ingresa como cajero para ver aquí las apuestas de tu punto de venta.</p>}
+          {token && bets.length === 0 && <p className="sb-muted">Aún no hay apuestas.</p>}
           <ul className="sb-bets" tabIndex={0} aria-label="Mis apuestas">
             {bets.slice(0, 8).map((bet) => (
               <li key={bet.id}>
@@ -394,14 +400,15 @@ export function LiveBetting({ token, onCompleted, onUnauthorized }: Props) {
 interface SlipProps {
   pick: Pick | null;
   liveOdds?: number;
-  token: string;
+  token?: string;
   onPlaced: () => void;
   onClear: () => void;
   onAcceptOdds: (odds: number) => void;
   onUnauthorized: () => void;
+  onSignIn?: () => void;
 }
 
-function BetSlip({ pick, liveOdds, token, onPlaced, onClear, onAcceptOdds, onUnauthorized }: SlipProps) {
+function BetSlip({ pick, liveOdds, token, onPlaced, onClear, onAcceptOdds, onUnauthorized, onSignIn }: SlipProps) {
   const [stake, setStake] = useState('');
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ kind: 'ok' | 'error' | 'info'; text: string } | null>(null);
@@ -418,6 +425,31 @@ function BetSlip({ pick, liveOdds, token, onPlaced, onClear, onAcceptOdds, onUna
       <section className="sb-card sb-slip">
         <h3>Cupón de apuesta</h3>
         <p className="sb-muted">Toca una cuota para agregarla al cupón.</p>
+      </section>
+    );
+  }
+
+  if (!token) {
+    return (
+      <section className="sb-card sb-slip">
+        <h3>
+          Cupón de apuesta
+          <button type="button" className="sb-link" onClick={onClear}>
+            Limpiar
+          </button>
+        </h3>
+        <div className="sb-pick">
+          <div>
+            <span className="sb-muted">{pick.match}</span>
+            <strong>{pick.label}</strong>
+            <span className="sb-muted">{pick.marketLabel}</span>
+          </div>
+          <span className="sb-pick-odds">{formatOdds(liveOdds ?? pick.odds)}</span>
+        </div>
+        <p className="sb-muted">Para apostar, ingresa como cajero: las apuestas se descuentan del saldo prepagado del punto de venta.</p>
+        <button type="button" className="sb-submit" onClick={onSignIn}>
+          Ingresar para apostar
+        </button>
       </section>
     );
   }
